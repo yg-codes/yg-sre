@@ -4,15 +4,15 @@ A comprehensive collection of **Python scripts** for managing Proxmox VE environ
 
 ## Scripts Overview
 
-### Unified VM Management Script (New!)
+### Unified VM Management Script
 - **`pve_vm_manager_api.py`** - **Complete VM management solution** with interactive menus for start/stop operations, backup creation/restoration, snapshot management, and powerful bulk operations
 
-### CLI-Based Snapshot Scripts (Original)
+### CLI-Based Snapshot Scripts
 - **`pve_snapshot_create_cli.py`** - Create VM snapshots using qm commands with configurable prefixes and optional VM state saving
 - **`pve_snapshot_delete_cli.py`** - Delete VM snapshots with safety confirmations
 - **`pve_snapshot_rollback_cli.py`** - Rollback VMs to specific snapshots with comprehensive safety checks
 
-### API-Based Snapshot Scripts (Enhanced)
+### API-Based Snapshot Scripts
 - **`pve_snapshot_create_api.py`** - API-based snapshot creation with multi-node cluster support, real-time monitoring, and enhanced permissions
 - **`pve_snapshot_rollback_api.py`** - API-based snapshot rollback with comprehensive safety checks, configuration comparison, and real-time task monitoring
 - **`pve_snapshot_delete_api.py`** - API-based snapshot deletion with bulk operations, task monitoring, and enhanced safety features
@@ -44,16 +44,16 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 - **🔍 Smart VM selection** - ranges, patterns, interactive selection
 - **📊 Real-time monitoring** - task progress, resource usage, status updates
 
-## 🔄 Recent Improvements (v2.5)
+## Key Features
 
-### **NEW: Interactive Snapshot Deletion & Enhanced UI (v2.5)**
+### **Interactive Snapshot Deletion & Enhanced UI**
 - **✅ Interactive snapshot deletion tool** - Focused tool for snapshot viewing and deletion operations across VMs
 - **✅ Enhanced display formatting** - Wider tables (135 chars) with expanded name columns (50 chars) for better readability
 - **✅ Independent API implementations** - All API scripts now self-contained with complete Proxmox API classes
 - **✅ Improved user experience** - Better snapshot name visibility and cleaner interface layouts
 - **✅ Standalone script architecture** - Each script includes full API functionality for independent operation
 
-### **Unified VM Management Script (v2.4)**
+### **Unified VM Management Script**
 - **✅ Complete VM lifecycle management** - All operations in one interactive tool
 - **✅ Bulk operations with concurrency** - Start/stop/backup/snapshot multiple VMs simultaneously
 - **✅ Advanced VM selection** - Ranges (7201-7205), patterns (72*), interactive selection
@@ -63,7 +63,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 - **✅ Smart error handling** - Comprehensive error recovery and user guidance
 - **✅ Protection handling** - Automatic detection and handling of VM protection mode
 
-### **CLI Scripts Enhancement - Unified User Experience (v2.3)**
+### **CLI Scripts Enhancement - Unified User Experience**
 - **✅ Enhanced pve_snapshot_delete_cli.py** to match display patterns from create and rollback scripts
 - **✅ Unified snapshot display** - Single formatted table with integrated selection numbers
 - **✅ Consistent VM listing** with emoji status indicators (🟢 running 🔴 stopped)
@@ -71,7 +71,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 - **✅ Enhanced user flow** - "q" from snapshot selection now exits completely
 - **✅ Eliminated duplicate displays** - No more redundant snapshot listings
 
-### **Complete API Migration Achieved! (v2.2)**
+### **Complete API Migration**
 - **✅ All three scripts now available in API version** - create, rollback, and delete
 - **✅ Consistent architecture** across all API scripts with shared base classes
 - **✅ Unified user experience** - same authentication, monitoring, and error handling
@@ -79,7 +79,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 
 ## ✨ Features
 
-### Unified VM Management (`pve_vm_manager_api.py`) ⭐ **NEW**
+### Unified VM Management (`pve_vm_manager_api.py`)
 
 #### **Comprehensive VM Operations**
 - **Start/Stop VMs** with safety checks and confirmation prompts
@@ -130,7 +130,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 
 ### API-Based Snapshot Scripts
 
-#### **Interactive Snapshot Deletion (`pve_snapshot_delete_interactive.py`)** ⭐ **Updated**
+#### **Interactive Snapshot Deletion (`pve_snapshot_delete_interactive.py`)**
 - **Focused interface** for snapshot deletion and viewing operations across VMs
 - **Enhanced display formatting** with wider tables (135 characters) and expanded name columns (50 characters)
 - **Improved user experience** with better snapshot name visibility and deletion management
@@ -175,8 +175,8 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 - **Consistent authentication** matching other API scripts
 - **Post-deletion verification** ensuring snapshot removal
 
-### CLI-Based Scripts (Enhanced - Still Available)
-All original CLI-based scripts remain available for environments where API access is not suitable or where minimal dependencies are preferred. Recent enhancements include:
+### CLI-Based Scripts
+All CLI-based scripts are available for environments where API access is not suitable or where minimal dependencies are preferred. Features include:
 - **Unified display formatting** across all three CLI scripts
 - **Enhanced VM listing** with emoji status indicators (🟢 running 🔴 stopped)
 - **Improved snapshot display** with formatted tables, sorted by date (newest first)
@@ -783,17 +783,17 @@ pveum aclmod / -token 'automation@pve!vm-management' -role PVEVMAdmin
 - Monitor storage space usage
 - Set up automated cleanup for old backups
 
-## 📈 Version History
+## 📈 Development History
 
-### **v2.5** - Interactive Snapshot Deletion & Enhanced UI
-- **✅ NEW: Interactive Snapshot Deletion Tool** - Focused tool for snapshot viewing and deletion operations with enhanced user interface
+### Interactive Snapshot Deletion & Enhanced UI
+- **✅ Interactive Snapshot Deletion Tool** - Focused tool for snapshot viewing and deletion operations with enhanced user interface
 - **✅ Enhanced display formatting** - Wider tables (135 chars) with expanded name columns (50 chars) for better readability
 - **✅ Independent API implementations** - All API scripts now self-contained with complete Proxmox API classes
 - **✅ Improved user experience** - Better snapshot name visibility and cleaner interface layouts
 - **✅ Standalone script architecture** - Each script includes full API functionality for independent operation
 
-### **v2.4** - Unified VM Management & Enhanced Capabilities
-- **✅ NEW: Complete VM Management Script** with interactive menus and bulk operations
+### Unified VM Management & Enhanced Capabilities
+- **✅ Complete VM Management Script** with interactive menus and bulk operations
 - **✅ Advanced bulk operations** with concurrent execution and progress tracking
 - **✅ Enhanced VM selection methods** - ranges, patterns, interactive selection
 - **✅ Complete backup lifecycle** - create, restore, delete with safety checks
@@ -801,7 +801,7 @@ pveum aclmod / -token 'automation@pve!vm-management' -role PVEVMAdmin
 - **✅ Protection mode handling** - automatic detection and safe removal
 - **✅ Real-time monitoring** for all operations with detailed progress tracking
 
-### **v2.3** - CLI Scripts Enhancement & UI/UX Unification
+### CLI Scripts Enhancement & UI/UX Unification
 - **✅ Enhanced pve_snapshot_delete_cli.py** to match display patterns from other CLI scripts
 - **✅ Unified snapshot display format** across all CLI scripts with integrated selection numbers
 - **✅ Consistent VM listing** with emoji status indicators and proper formatting
@@ -810,27 +810,27 @@ pveum aclmod / -token 'automation@pve!vm-management' -role PVEVMAdmin
 - **✅ VM state type indicators** (🧠 with vmstate / 💾 disk only) across all CLI scripts
 - **✅ Date sorting consistency** - All scripts now sort snapshots by newest first
 
-### **v2.2** - Complete API Migration
+### Complete API Migration
 - **✅ Added API-based deletion script** completing the API migration
 - **✅ Feature parity achieved** across all three operations
 - **✅ Consistent architecture** with shared inheritance model
 - **✅ Enhanced bulk operations** with appropriate safety checks
 - **✅ Unified user experience** across create, rollback, and delete
 
-### **v2.1** - Code Unification & Quality Improvements
+### Code Unification & Quality Improvements
 - **✅ Eliminated code duplication** between API scripts
 - **✅ Unified vmstate detection logic** with configurable keywords
 - **✅ Improved inheritance structure** for better maintainability
 - **✅ Enhanced code quality** with single source of truth
 - **✅ Consistent behavior** across all vmstate operations
 
-### **v2.0** - API Scripts Introduction
+### API Scripts Introduction
 - Added comprehensive API-based alternatives to CLI scripts
 - Multi-node cluster support with enhanced debugging
 - Real-time task monitoring and progress tracking
 - Configuration comparison features for rollback operations
 
-### **v1.x** - CLI Scripts Foundation
+### CLI Scripts Foundation
 - Original qm command-based implementations
 - Interactive and command-line modes
 - Basic vmstate support and safety features
