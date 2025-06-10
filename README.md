@@ -38,7 +38,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 
 ## ✨ Features
 
-### Unified VM Management (`pve_vm_manager_api.py`) ⭐
+### Unified VM Management (`pve_vm_manager_api.py`) 
 
 #### **Comprehensive VM Operations**
 - **Start/Stop VMs** with safety checks and confirmation prompts
@@ -87,7 +87,7 @@ pveum aclmod / -token 'your-username@pam!your-token-name' -role PVEVMAdmin
 - **Status indicators** with emoji icons for quick visual feedback
 - **Resource monitoring** showing disk space, VM resources, and cluster health
 
-### Unified Snapshot Management (`pve_snapshot_manager.py`) ⭐
+### Unified Snapshot Management (`pve_snapshot_manager.py`) 
 
 #### **Comprehensive Snapshot Operations**
 - **Create snapshots** with intelligent naming and vmstate options
@@ -419,14 +419,14 @@ MAX_CONCURRENT_SNAPSHOTS=2     # Snapshot operations
 
 | Feature | VM Manager | Snapshot Manager |
 |---------|------------|------------------|
-| **VM Management** | Complete lifecycle ⭐ | Snapshots only |
-| **Backup Management** | Full backup lifecycle ⭐ | None |
-| **Snapshot Operations** | Complete operations | Advanced snapshot focus ⭐ |
-| **Bulk Operations** | All operations ⭐ | Snapshot operations ⭐ |
-| **Command Line Mode** | Interactive only | Interactive + CLI ⭐ |
-| **VM Selection** | Advanced selection ⭐ | Advanced selection ⭐ |
-| **User Interface** | Interactive menus ⭐ | Interactive + CLI ⭐ |
-| **Safety Features** | Operation-appropriate ⭐ | Multi-level confirmations ⭐ |
+| **VM Management** | Complete lifecycle  | Snapshots only |
+| **Backup Management** | Full backup lifecycle  | None |
+| **Snapshot Operations** | Complete operations | Advanced snapshot focus  |
+| **Bulk Operations** | All operations  | Snapshot operations  |
+| **Command Line Mode** | Interactive only | Interactive + CLI  |
+| **VM Selection** | Advanced selection  | Advanced selection  |
+| **User Interface** | Interactive menus  | Interactive + CLI  |
+| **Safety Features** | Operation-appropriate  | Multi-level confirmations  |
 
 **Recommendation:** Use `pve_vm_manager_api.py` for comprehensive VM management, `pve_snapshot_manager.py` for snapshot-focused workflows and command-line automation.
 
@@ -449,12 +449,12 @@ ProxmoxSnapshotManager
 └── Base methods for all operations
 
 ProxmoxVMManager (extends ProxmoxSnapshotManager)
-├── Inherits all snapshot functionality ⭐
+├── Inherits all snapshot functionality 
 ├── VM lifecycle management
 ├── Backup operations
 ├── Bulk operations with concurrency
 ├── Advanced UI/UX features
-└── Complete VM administration ⭐
+└── Complete VM administration 
 ```
 
 ## 📋 Examples
