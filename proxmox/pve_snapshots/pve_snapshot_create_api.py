@@ -338,9 +338,9 @@ Features:
         else:
             # Fall back to removing common prefixes
             clean_name = full_name
-            if clean_name.startswith('xxx-dev-'):
+            if clean_name.startswith('xsf-dev-'):
                 clean_name = clean_name[8:]
-            elif clean_name.startswith('xxx-prod-'):
+            elif clean_name.startswith('xaj-prod-'):
                 clean_name = clean_name[9:]
         
         return clean_name if clean_name else full_name
@@ -609,9 +609,9 @@ Features:
                 clean_name = '-'.join(name_parts[2:])
             else:
                 clean_name = full_name
-                if clean_name.startswith('xxx-dev-'):
+                if clean_name.startswith('xsf-dev-'):
                     clean_name = clean_name[8:]
-                elif clean_name.startswith('xxx-prod-'):
+                elif clean_name.startswith('xaj-prod-'):
                     clean_name = clean_name[9:]
             vm_display_name = clean_name if clean_name else full_name
         else:

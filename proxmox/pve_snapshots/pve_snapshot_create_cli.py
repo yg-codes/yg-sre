@@ -40,8 +40,8 @@ Examples:
   python3 pve_snapshot_create.py                               # Interactive mode - prompts for prefix and VM selection
 
 Sample snapshot names that will be created:
-  VM 7201 (xxx-dev-storage01) -> pre-release-storage01-20250530-1430
-  VM with xxx-prod-apps02 -> maintenance-apps02-20250530-1430
+  VM 7201 (xsf-dev-storage01) -> pre-release-storage01-20250530-1430
+  VM with xaj-prod-apps02 -> maintenance-apps02-20250530-1430
 
 Features:
   - Interactive mode with VM state saving option
@@ -180,9 +180,9 @@ Features:
                     else:
                         # Fall back to removing common prefixes
                         clean_name = full_name
-                        if clean_name.startswith('xxx-dev-'):
+                        if clean_name.startswith('xsf-dev-'):
                             clean_name = clean_name[8:]
-                        elif clean_name.startswith('xxx-prod-'):
+                        elif clean_name.startswith('xaj-prod-'):
                             clean_name = clean_name[9:]
 
                     return clean_name if clean_name else full_name

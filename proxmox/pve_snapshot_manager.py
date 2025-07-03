@@ -19,6 +19,7 @@ import re
 import threading
 import json
 import getpass
+import argparse
 from datetime import datetime
 from typing import List, Optional, Dict, Tuple, Set, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -377,7 +378,7 @@ class VMSelector:
         print("  *workstation*        - Pattern matching (contains)")
         print("  i                    - Interactive selection")
         print("  7201                 - Single VM ID")
-        print("  xxx-dev-smtp01       - Single VM name")
+        print("  xsf-dev-smtp01       - Single VM name")
         print("  smtp01               - Partial VM name")
         print()
         print("Examples with your VMs:")
@@ -614,9 +615,9 @@ Usage: python3 pve_snapshot_manager_api.py
         else:
             # Fall back to removing common prefixes
             clean_name = full_name
-            if clean_name.startswith('xxx-dev-'):
+            if clean_name.startswith('xsf-dev-'):
                 clean_name = clean_name[8:]
-            elif clean_name.startswith('xxx-prod-'):
+            elif clean_name.startswith('xaj-prod-'):
                 clean_name = clean_name[9:]
         
         return clean_name if clean_name else full_name
@@ -769,8 +770,8 @@ Usage: python3 pve_snapshot_manager_api.py
                 
             except ProxmoxAPIError:
                 return False
-    
-    def create_snapshot(self, vmid: str, prefix: str) -> bool:
+
+    def create_snapshot(self, vmid: str, name_or_prefix: str, use_exact_name: bool = False) -> bool:
         """Create a snapshot for a VM with intelligent naming and monitoring."""
         timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
         vm_name = self.get_vm_name(vmid)
@@ -784,25 +785,35 @@ Usage: python3 pve_snapshot_manager_api.py
             print(f"  ✗ Could not find node for VM {vmid}")
             return False
         
-        # Create snapshot name
-        full_snapshot_name = f"{prefix}-{vm_name}-{timestamp}"
+        # Create snapshot name based on mode
+        if use_exact_name:
+            full_snapshot_name = name_or_prefix
+            print(f"Creating snapshot for VM {vmid} with exact name...")
+        else:
+            # Original behavior: prefix + vm_name + timestamp
+            full_snapshot_name = f"{name_or_prefix}-{vm_name}-{timestamp}"
+            print(f"Creating snapshot for VM {vmid} with generated name...")
+            
+            # Handle name length limits for generated names
+            if len(full_snapshot_name) > self.max_snapshot_name_length:
+                print(f"  ⚠ Snapshot name too long ({len(full_snapshot_name)} chars), truncating VM name...")
+                
+                prefix_suffix_length = len(name_or_prefix) + 1 + 1 + 13
+                max_vm_name_length = self.max_snapshot_name_length - prefix_suffix_length
+                
+                if max_vm_name_length <= 0:
+                    print(f"  ✗ Prefix '{name_or_prefix}' is too long. Maximum prefix length is {self.max_snapshot_name_length - 14} characters")
+                    return False
+                
+                truncated_vm_name = self.truncate_vm_name_intelligently(vm_name, max_vm_name_length)
+                full_snapshot_name = f"{name_or_prefix}-{truncated_vm_name}-{timestamp}"
+                print(f"  📝 Truncated VM name: '{vm_name}' -> '{truncated_vm_name}'")
         
-        # Handle name length limits
+        # Validate final snapshot name length
         if len(full_snapshot_name) > self.max_snapshot_name_length:
-            print(f"  ⚠ Snapshot name too long ({len(full_snapshot_name)} chars), truncating VM name...")
-            
-            prefix_suffix_length = len(prefix) + 1 + 1 + 13
-            max_vm_name_length = self.max_snapshot_name_length - prefix_suffix_length
-            
-            if max_vm_name_length <= 0:
-                print(f"  ✗ Prefix '{prefix}' is too long. Maximum prefix length is {self.max_snapshot_name_length - 14} characters")
-                return False
-            
-            truncated_vm_name = self.truncate_vm_name_intelligently(vm_name, max_vm_name_length)
-            full_snapshot_name = f"{prefix}-{truncated_vm_name}-{timestamp}"
-            print(f"  📝 Truncated VM name: '{vm_name}' -> '{truncated_vm_name}'")
+            print(f"  ✗ Final snapshot name '{full_snapshot_name}' is too long ({len(full_snapshot_name)} chars, max {self.max_snapshot_name_length})")
+            return False
         
-        print(f"Creating snapshot for VM {vmid}...")
         full_vm_name = self.get_full_vm_name(vmid)
         if full_vm_name:
             print(f"  Full VM Name: {full_vm_name}")
@@ -861,8 +872,7 @@ Usage: python3 pve_snapshot_manager_api.py
             
         except ProxmoxAPIError as e:
             print(f"  ✗ Failed to create snapshot: {e.message}")
-            return False
-    
+            return False   
     def _create_snapshot_silent(self, vmid: str, prefix: str) -> bool:
         """Create a snapshot without output (for bulk operations)."""
         timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -1414,6 +1424,7 @@ Usage: python3 pve_snapshot_manager_api.py
         print("  - Enter snapshot number (1-{}) to delete specific snapshot".format(len(available_snapshots)))
         print("  - Enter 'all' to delete ALL snapshots")
         print("  - Enter 'q' to cancel")
+        print("  - Hint: Press Ctrl+C to return to upper menu")
         print()
         choice = input("Your choice: ").strip()
         
@@ -1797,6 +1808,8 @@ Usage: python3 pve_snapshot_manager_api.py
         print("1. Delete by name pattern (e.g., all snapshots containing 'test')")
         print("2. Select specific snapshots to delete")
         print("3. Delete ALL snapshots from selected VMs (DANGEROUS)")
+        print("Hint: Press Ctrl+C to return to upper menu")
+        print()
         
         delete_choice = input("Select deletion method (1-3): ").strip()
         
@@ -1960,7 +1973,7 @@ Usage: python3 pve_snapshot_manager_api.py
                     return
                 
                 # Show operation menu
-                print("VM Management Operations:")
+                print("Snapshot Management Operations:")
                 print("=" * 30)
                 print("1. Create Snapshot")
                 print("2. Rollback Snapshot")
@@ -2024,7 +2037,7 @@ Usage: python3 pve_snapshot_manager_api.py
     
     def main_menu(self):
         """Main menu for snapshot management."""
-        print("Proxmox VM Management Tool")
+        print("Proxmox Snapshot Management Tool")
         print("=" * 30)
         
         while True:
@@ -2059,7 +2072,7 @@ Usage: python3 pve_snapshot_manager_api.py
                             print(f"❌ VM '{vm_identifier}' not found")
                             print("You can enter:")
                             print("  - VM ID (e.g., 7303)")
-                            print("  - Full VM name (e.g., xxx-dev-workstation03)")
+                            print("  - Full VM name (e.g., xsf-dev-workstation03)")
                             print("  - Partial VM name (e.g., workstation03)")
                             input("Press Enter to continue...")
                 elif choice == '3':
@@ -2076,7 +2089,7 @@ Usage: python3 pve_snapshot_manager_api.py
                         print("You can enter:")
                         print("  - Menu option (1-3)")
                         print("  - VM ID (e.g., 7303)")
-                        print("  - Full VM name (e.g., xxx-dev-workstation03)")
+                        print("  - Full VM name (e.g., xsf-dev-workstation03)")
                         print("  - Partial VM name (e.g., workstation03)")
                         input("Press Enter to continue...")
                 
@@ -2104,46 +2117,62 @@ INTERACTIVE MODE:
 COMMAND LINE MODE:
   
   CREATE SNAPSHOTS:
-    python3 pve_snapshot_manager_api.py create [options] [prefix] [vmid1/vmname1] [vmid2/vmname2] ...
+    python3 pve_snapshot_manager_api.py create --vmid [vmid1] [vmid2] --prefix [prefix]
+    python3 pve_snapshot_manager_api.py create --vmname [vmname1] [vmname2] --prefix [prefix]
+    python3 pve_snapshot_manager_api.py create --vmid [vmid] --snapshot_name [exact_name]
     
     Creates snapshots with format: <PREFIX>-<3RD_SECTION>-YYYYMMDD-HHMMSS
     The 3RD_SECTION is extracted from VM name using '-' as separator (3rd part onwards)
     
     Options:
-      --with-vmstate    Include VM state (RAM) in snapshot (slower but complete state)
-      --no-vmstate      Disk only snapshot (faster, default)
+      --vmstate 1       Include VM state (RAM) in snapshot (slower but complete state)
+      --vmstate 0       Disk only snapshot (faster, default)
+      --yes             Skip confirmation prompt
     
     Examples:
-      python3 pve_snapshot_manager_api.py create pre-update 7201 7203 smtp01
-      python3 pve_snapshot_manager_api.py create --with-vmstate backup smtp01 workstation03
-      python3 pve_snapshot_manager_api.py create --no-vmstate test 7201,7202,7203
+      python3 pve_snapshot_manager_api.py create --vmid 7201 7203 --prefix pre-update
+      python3 pve_snapshot_manager_api.py create --vmname smtp01 workstation03 --prefix backup --vmstate 1
+      python3 pve_snapshot_manager_api.py create --vmid 7201 --snapshot_name backup-20250101-1200
       
   DELETE SNAPSHOTS:
-    python3 pve_snapshot_manager_api.py delete [vmid/vmname] [snapshot_name]
+    python3 pve_snapshot_manager_api.py delete --vmid [vmid] --snapshot_name [snapshot_name]
+    python3 pve_snapshot_manager_api.py delete --vmname [vmname] --snapshot_name [snapshot_name1] [snapshot_name2]
+    python3 pve_snapshot_manager_api.py delete --vmid [vmid] --all
     
     Delete VM snapshots with comprehensive safety checks and status monitoring.
+    Supports deleting multiple snapshots or all snapshots for a VM.
     
     Examples:
-      python3 pve_snapshot_manager_api.py delete 7201 pre-update-smtp01-20250609-1430
-      python3 pve_snapshot_manager_api.py delete smtp01 backup-smtp01-20250608-0900
+      python3 pve_snapshot_manager_api.py delete --vmid 7201 --snapshot_name pre-update-smtp01-20250609-1430
+      python3 pve_snapshot_manager_api.py delete --vmname smtp01 --snapshot_name backup-smtp01-20250608-0900 backup-smtp01-20250607-0900
+      python3 pve_snapshot_manager_api.py delete --vmid 7201 --all
       
   ROLLBACK SNAPSHOTS:
-    python3 pve_snapshot_manager_api.py rollback [vmid/vmname] [snapshot_name]
+    python3 pve_snapshot_manager_api.py rollback --vmid [vmid] --snapshot_name [snapshot_name]
+    python3 pve_snapshot_manager_api.py rollback --vmname [vmname] --snapshot_name [snapshot_name]
+    python3 pve_snapshot_manager_api.py rollback --vmid [vmid1] [vmid2] --snapshot_name [snapshot_name]
+    python3 pve_snapshot_manager_api.py rollback --vmname [vmname1] [vmname2] --snapshot_name [snapshot_name]
     
-    Rollback VM to a specific snapshot with comprehensive safety checks and status monitoring.
+    Rollback VM(s) to a specific snapshot with comprehensive safety checks and status monitoring.
+    Supports rolling back multiple VMs to the same snapshot.
     
     Examples:
-      python3 pve_snapshot_manager_api.py rollback 7201 pre-update-smtp01-20250609-1430
-      python3 pve_snapshot_manager_api.py rollback smtp01 backup-smtp01-20250608-0900
+      python3 pve_snapshot_manager_api.py rollback --vmid 7201 --snapshot_name pre-update-smtp01-20250609-1430
+      python3 pve_snapshot_manager_api.py rollback --vmname smtp01 --snapshot_name backup-smtp01-20250608-0900
+      python3 pve_snapshot_manager_api.py rollback --vmid 7201 7202 --snapshot_name pre-update-batch-20250609-1430
+      python3 pve_snapshot_manager_api.py rollback --vmname smtp01 smtp02 --snapshot_name backup-batch-20250608-0900
       
   LIST SNAPSHOTS:
-    python3 pve_snapshot_manager_api.py list [vmid/vmname]
+    python3 pve_snapshot_manager_api.py list --vmid [vmid1] [vmid2]
+    python3 pve_snapshot_manager_api.py list --vmname [vmname1] [vmname2]
     
-    List all snapshots for a specific VM.
+    List all snapshots for specific VM(s).
     
     Examples:
-      python3 pve_snapshot_manager_api.py list 7201
-      python3 pve_snapshot_manager_api.py list smtp01
+      python3 pve_snapshot_manager_api.py list --vmid 7201
+      python3 pve_snapshot_manager_api.py list --vmname smtp01
+      python3 pve_snapshot_manager_api.py list --vmid 7201 7202 7203
+      python3 pve_snapshot_manager_api.py list --vmname smtp01 smtp02
 
 API Authentication Options:
   1. Username/Password (prompted in interactive mode)
@@ -2154,7 +2183,7 @@ API Authentication Options:
      export PVE_TOKEN_VALUE=token-value
 
 Command Line Notes:
-  - VM identifiers can be VM IDs (7201) or VM names (smtp01, xxx-dev-smtp01)
+  - VM identifiers can be VM IDs (7201) or VM names (smtp01, xsf-dev-smtp01)
   - For create command, you can specify multiple VMs separated by spaces or commas
   - Snapshot names must be exact (use 'list' command to see available snapshots)
   - All operations include comprehensive safety checks and status monitoring
@@ -2183,7 +2212,7 @@ Command Line Notes:
         
         return resolved_ids
     
-    def cmd_create_snapshots(self, args: List[str]) -> bool:
+    def cmd_create_snapshots(self, args: List[str], skip_confirmation: bool = False, use_exact_name: bool = False) -> bool:
         """Handle command line snapshot creation."""
         if len(args) < 2:
             print("❌ Usage: python3 pve_snapshot_manager_api.py create [options] [prefix] [vmid1/vmname1] [vmid2/vmname2] ...")
@@ -2214,12 +2243,15 @@ Command Line Notes:
             print("Example: python3 pve_snapshot_manager_api.py create --with-vmstate pre-update 7201 smtp01")
             return False
         
-        prefix = args[arg_index]
+        snapshot_name_or_prefix = args[arg_index]
         vm_args = args[arg_index + 1:]
         
-        # Validate prefix
-        if len(prefix) > 20:
-            print(f"❌ Prefix '{prefix}' too long (max 20 characters)")
+        # Validate snapshot name/prefix
+        max_length = 40 if use_exact_name else 20
+        name_type = "snapshot name" if use_exact_name else "prefix"
+        
+        if len(snapshot_name_or_prefix) > max_length:
+            print(f"❌ {name_type.capitalize()} '{snapshot_name_or_prefix}' too long (max {max_length} characters)")
             return False
         
         # Parse VM list
@@ -2227,7 +2259,8 @@ Command Line Notes:
         if not vm_ids:
             return False
         
-        print(f"📸 Creating snapshots for {len(vm_ids)} VMs with prefix '{prefix}'")
+        action_desc = f"Creating snapshots for {len(vm_ids)} VMs with {name_type} '{snapshot_name_or_prefix}'"
+        print(f"📸 {action_desc}")
         print(f"VM State: {'WITH vmstate (RAM)' if include_vmstate else 'WITHOUT vmstate (disk only)'}")
         print("VMs to snapshot:")
         
@@ -2250,10 +2283,13 @@ Command Line Notes:
             print(f"  All snapshots will be disk-only (RAM state only applies to running VMs)")
         
         # Confirm operation
-        confirm = input(f"\nProceed to create snapshots? (y/N): ").strip().lower()
-        if confirm not in ['y', 'yes']:
-            print("Operation cancelled")
-            return False
+        if skip_confirmation:
+            print("\n✅ Proceeding with snapshot creation (--yes flag provided)")
+        else:
+            confirm = input(f"\nProceed to create snapshots? (y/N): ").strip().lower()
+            if confirm not in ['y', 'yes']:
+                print("Operation cancelled")
+                return False
         
         # Set vmstate option temporarily
         original_vmstate = getattr(self, 'save_vmstate', False)
@@ -2264,7 +2300,7 @@ Command Line Notes:
             success_count = 0
             for vm_id in vm_ids:
                 print(f"\n{'='*60}")
-                success = self.create_snapshot(vm_id, prefix)
+                success = self.create_snapshot(vm_id, snapshot_name_or_prefix, use_exact_name=use_exact_name)
                 if success:
                     success_count += 1
         finally:
@@ -2281,8 +2317,7 @@ Command Line Notes:
         print(f"VM State: {'WITH vmstate (RAM)' if include_vmstate else 'WITHOUT vmstate (disk only)'}")
         
         return success_count == len(vm_ids)
-    
-    def cmd_delete_snapshot(self, args: List[str]) -> bool:
+    def cmd_delete_snapshot(self, args: List[str], skip_confirmation: bool = False) -> bool:
         """Handle command line snapshot deletion."""
         if len(args) != 2:
             print("❌ Usage: python3 pve_snapshot_manager_api.py delete [vmid/vmname] [snapshot_name]")
@@ -2332,10 +2367,13 @@ Command Line Notes:
         print("=" * 60)
         
         # Confirm operation
-        confirm = input(f"\nDelete snapshot '{snapshot_name}'? (yes/N): ").strip().lower()
-        if confirm != 'yes':
-            print("Operation cancelled")
-            return False
+        if skip_confirmation:
+            print(f"\n✅ Proceeding with snapshot deletion (--yes flag provided)")
+        else:
+            confirm = input(f"\nDelete snapshot '{snapshot_name}'? (yes/N): ").strip().lower()
+            if confirm != 'yes':
+                print("Operation cancelled")
+                return False
         
         # Delete snapshot
         success = self.delete_snapshot(vm_id, snapshot_name)
@@ -2346,7 +2384,7 @@ Command Line Notes:
         
         return success
     
-    def cmd_rollback_snapshot(self, args: List[str]) -> bool:
+    def cmd_rollback_snapshot(self, args: List[str], skip_confirmation: bool = False) -> bool:
         """Handle command line snapshot rollback."""
         if len(args) != 2:
             print("❌ Usage: python3 pve_snapshot_manager_api.py rollback [vmid/vmname] [snapshot_name]")
@@ -2425,10 +2463,13 @@ Command Line Notes:
         print(f"  Created: {created}")
         
         # Confirm operation
-        confirm = input(f"\nType 'ROLLBACK' to confirm this dangerous operation: ").strip()
-        if confirm != 'ROLLBACK':
-            print("Operation cancelled")
-            return False
+        if skip_confirmation:
+            print("\n✅ Proceeding with rollback (--yes flag provided)")
+        else:
+            confirm = input(f"\nType 'ROLLBACK' to confirm this dangerous operation: ").strip()
+            if confirm != 'ROLLBACK':
+                print("Operation cancelled")
+                return False
         
         # Perform rollback
         success = self.rollback_snapshot(vm_id, snapshot_name)
@@ -2464,25 +2505,665 @@ Command Line Notes:
         return True
     
     def handle_command_line(self, args: List[str]) -> bool:
-        """Handle command line arguments."""
-        if len(args) < 1:
+        """Handle command line arguments using argparse."""
+        parser = argparse.ArgumentParser(
+            prog='pve_snapshot_manager.py',
+            description='Proxmox VM Snapshot Management Tool',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog='''
+Examples:
+  %(prog)s create --vmid 100 --prefix backup
+  %(prog)s create --vmname web-server --snapshot_name backup-20250101 --vmstate 1
+  %(prog)s list --vmid 100
+  %(prog)s list --vmname web-server database-server
+  %(prog)s rollback --vmid 100 --snapshot_name backup-20250101-1200
+  %(prog)s rollback --vmname web-server database-server --snapshot_name backup-20250101-1200
+  %(prog)s delete --vmname web-server --snapshot_name backup-20250101-1200
+            '''
+        )
+        
+        subparsers = parser.add_subparsers(dest='command', help='Available commands')
+        
+        # Create subcommand
+        create_parser = subparsers.add_parser('create', help='Create VM snapshots')
+        create_group = create_parser.add_mutually_exclusive_group(required=True)
+        create_group.add_argument('--vmid', nargs='+', type=int, help='VM ID(s)')
+        create_group.add_argument('--vmname', nargs='+', help='VM name(s)')
+        create_parser.add_argument('--prefix', default='snapshot', help='Snapshot prefix (default: snapshot)')
+        create_parser.add_argument('--snapshot_name', help='Full snapshot name (max 40 chars)')
+        create_parser.add_argument('--vmstate', type=int, choices=[0, 1], default=0, 
+                                 help='Include VM state: 0=no vmstate (default), 1=with vmstate')
+        create_parser.add_argument('--yes', action='store_true', 
+                                 help='Skip confirmation prompt')
+        
+        # List subcommand
+        list_parser = subparsers.add_parser('list', help='List VM snapshots')
+        list_group = list_parser.add_mutually_exclusive_group(required=True)
+        list_group.add_argument('--vmid', nargs='+', type=int, help='VM ID(s)')
+        list_group.add_argument('--vmname', nargs='+', help='VM name(s)')
+        
+        # Rollback subcommand
+        rollback_parser = subparsers.add_parser('rollback', help='Rollback VM(s) to snapshot')
+        rollback_group = rollback_parser.add_mutually_exclusive_group(required=True)
+        rollback_group.add_argument('--vmid', nargs='+', type=int, help='VM ID(s)')
+        rollback_group.add_argument('--vmname', nargs='+', help='VM name(s)')
+        rollback_parser.add_argument('--snapshot_name', required=True, help='Snapshot name to rollback to')
+        rollback_parser.add_argument('--yes', action='store_true', 
+                                   help='Skip confirmation prompt')
+        
+        # Delete subcommand
+        delete_parser = subparsers.add_parser('delete', help='Delete VM snapshot(s)')
+        delete_group = delete_parser.add_mutually_exclusive_group(required=True)
+        delete_group.add_argument('--vmid', nargs='+', type=int, help='VM ID(s)')
+        delete_group.add_argument('--vmname', nargs='+', help='VM name(s)')
+        
+        # Create mutually exclusive group for snapshot selection
+        snapshot_group = delete_parser.add_mutually_exclusive_group(required=True)
+        snapshot_group.add_argument('--snapshot_name', nargs='+', help='Snapshot name(s) to delete (space-separated)')
+        snapshot_group.add_argument('--all', action='store_true', help='Delete all snapshots for the VM(s)')
+        
+        delete_parser.add_argument('--yes', action='store_true', 
+                                 help='Skip confirmation prompt')
+        
+        try:
+            parsed_args = parser.parse_args(args)
+        except SystemExit:
             return False
         
-        command = args[0].lower()
-        cmd_args = args[1:]
+        if not parsed_args.command:
+            parser.print_help()
+            return False
         
-        if command == 'create':
-            return self.cmd_create_snapshots(cmd_args)
-        elif command == 'delete':
-            return self.cmd_delete_snapshot(cmd_args)
-        elif command == 'rollback':
-            return self.cmd_rollback_snapshot(cmd_args)
-        elif command == 'list':
-            return self.cmd_list_snapshots(cmd_args)
+        # Execute the appropriate command based on parsed arguments
+        if parsed_args.command == 'create':
+            return self.cmd_create_snapshots_new(parsed_args)
+        elif parsed_args.command == 'list':
+            return self.cmd_list_snapshots_new(parsed_args)
+        elif parsed_args.command == 'rollback':
+            return self.cmd_rollback_snapshot_new(parsed_args)
+        elif parsed_args.command == 'delete':
+            return self.cmd_delete_snapshot_new(parsed_args)
         else:
-            print(f"❌ Unknown command: {command}")
-            print("Available commands: create, delete, rollback, list")
-            print("Use --help for detailed usage information")
+            parser.print_help()
+            return False
+
+    def cmd_create_snapshots_new(self, args) -> bool:
+        """Create snapshots using new argument structure."""
+        try:
+            # Determine VM target(s)
+            vm_targets = []
+            if args.vmid:
+                vm_targets = [str(vmid) for vmid in args.vmid]
+            elif args.vmname:
+                vm_targets = args.vmname
+            
+            # Validate snapshot name length if provided
+            if args.snapshot_name and len(args.snapshot_name) > 40:
+                print("❌ Error: Snapshot name cannot exceed 40 characters")
+                return False
+            
+            # Prepare options for legacy method
+            legacy_args = []
+            
+            # Add vmstate option
+            if args.vmstate == 1:
+                legacy_args.append('--with-vmstate')
+            else:
+                legacy_args.append('--no-vmstate')
+            
+            # Add prefix or snapshot name
+            if args.snapshot_name:
+                legacy_args.append(args.snapshot_name)
+            else:
+                legacy_args.append(args.prefix)
+            
+            # Add VM targets
+            legacy_args.extend(vm_targets)
+            
+            # Call the existing create method with yes flag and exact name flag
+            return self.cmd_create_snapshots(legacy_args, skip_confirmation=args.yes, use_exact_name=bool(args.snapshot_name))
+            
+        except Exception as e:
+            print(f"❌ Error creating snapshots: {e}")
+            return False
+    
+    def cmd_list_snapshots_new(self, args) -> bool:
+        """List snapshots using new argument structure."""
+        try:
+            # Determine VM target(s)
+            vm_targets = []
+            if args.vmid:
+                vm_targets = [str(vmid) for vmid in args.vmid]
+            elif args.vmname:
+                vm_targets = args.vmname
+            
+            # Process each VM target
+            success = True
+            for vm_target in vm_targets:
+                if not self.cmd_list_snapshots([vm_target]):
+                    success = False
+            
+            return success
+            
+        except Exception as e:
+            print(f"❌ Error listing snapshots: {e}")
+            return False
+    
+    def cmd_rollback_multiple_vms(self, vm_targets: List[str], snapshot_name: str, skip_confirmation: bool = False) -> bool:
+        """Handle rollback for multiple VMs to the same snapshot."""
+        print(f"⏪ Rolling back {len(vm_targets)} VM(s) to snapshot '{snapshot_name}'")
+        print("=" * 60)
+        
+        # Resolve all VM IDs and validate
+        vm_info_list = []
+        for vm_target in vm_targets:
+            vm_id = self.find_vm_by_name_or_id(vm_target)
+            if not vm_id:
+                print(f"❌ VM '{vm_target}' not found")
+                return False
+            
+            vm_info = self.get_vm_info(vm_id)
+            if not vm_info:
+                print(f"❌ Could not get VM information for {vm_id}")
+                return False
+            
+            # Check if snapshot exists
+            snapshots = self.get_snapshots(vm_id)
+            available_snapshots = [s for s in snapshots if s.get('name') != 'current']
+            target_snapshot = None
+            
+            for snapshot in available_snapshots:
+                if snapshot.get('name') == snapshot_name:
+                    target_snapshot = snapshot
+                    break
+            
+            if not target_snapshot:
+                print(f"❌ Snapshot '{snapshot_name}' not found for VM {vm_id} ({vm_info['name']})")
+                if available_snapshots:
+                    print(f"Available snapshots for VM {vm_id}:")
+                    for snapshot in available_snapshots:
+                        name = snapshot.get('name', 'Unknown')
+                        desc = snapshot.get('description', 'No description')
+                        print(f"  - {name}: {desc}")
+                return False
+            
+            vm_info_list.append({
+                'vm_id': vm_id,
+                'vm_info': vm_info,
+                'target_snapshot': target_snapshot
+            })
+        
+        # Display VMs to be rolled back
+        print(f"VMs to rollback:")
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            is_running, status_display, _ = self.get_vm_status_detailed(vm_id)
+            print(f"  • VM {vm_id}: {vm_info['name']} (Status: {status_display})")
+        
+        # Show rollback warning
+        print(f"\n⚠️  BULK SNAPSHOT ROLLBACK WARNING")
+        print("=" * 60)
+        print("This operation will:")
+        print(f"  • Revert {len(vm_info_list)} VM(s) to snapshot: {snapshot_name}")
+        print("  • ALL changes made after this snapshot will be LOST")
+        print("  • This action cannot be undone!")
+        print("  • Running VMs will be stopped during rollback")
+        print("=" * 60)
+        
+        # Show snapshot details (from first VM)
+        target_snapshot = vm_info_list[0]['target_snapshot']
+        desc = target_snapshot.get('description', 'No description')
+        snaptime = target_snapshot.get('snaptime', 0)
+        if snaptime:
+            created = datetime.fromtimestamp(snaptime).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            created = 'Unknown'
+        
+        print(f"\nSnapshot Details:")
+        print(f"  Name: {snapshot_name}")
+        print(f"  Description: {desc}")
+        print(f"  Created: {created}")
+        
+        # Confirm operation
+        if skip_confirmation:
+            print("\n✅ Proceeding with bulk rollback (--yes flag provided)")
+        else:
+            confirm = input(f"\nType 'ROLLBACK' to confirm this dangerous operation for {len(vm_info_list)} VM(s): ").strip()
+            if confirm != 'ROLLBACK':
+                print("Operation cancelled")
+                return False
+        
+        # Perform rollbacks
+        success_count = 0
+        failed_vms = []
+        
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            
+            print(f"\n⏪ Rolling back VM {vm_id} ({vm_info['name']}) to '{snapshot_name}'...")
+            success = self.rollback_snapshot(vm_id, snapshot_name)
+            
+            if success:
+                print(f"✅ VM {vm_id} rollback completed successfully!")
+                success_count += 1
+            else:
+                print(f"❌ VM {vm_id} rollback failed!")
+                failed_vms.append(f"{vm_id} ({vm_info['name']})")
+        
+        # Summary
+        print(f"\n📊 Rollback Summary:")
+        print(f"  ✅ Successfully rolled back: {success_count}/{len(vm_info_list)} VMs")
+        if failed_vms:
+            print(f"  ❌ Failed to rollback: {', '.join(failed_vms)}")
+        
+        return len(failed_vms) == 0
+
+    def cmd_rollback_snapshot_new(self, args) -> bool:
+        """Rollback snapshot using new argument structure."""
+        try:
+            # Determine VM target(s)
+            vm_targets = []
+            if args.vmid:
+                vm_targets = [str(vmid) for vmid in args.vmid]
+            elif args.vmname:
+                vm_targets = args.vmname
+            
+            # Handle multiple VMs
+            if len(vm_targets) == 1:
+                # Single VM - use existing method
+                return self.cmd_rollback_snapshot([vm_targets[0], args.snapshot_name], skip_confirmation=args.yes)
+            else:
+                # Multiple VMs - use bulk rollback logic
+                return self.cmd_rollback_multiple_vms(vm_targets, args.snapshot_name, skip_confirmation=args.yes)
+            
+        except Exception as e:
+            print(f"❌ Error rolling back snapshot: {e}")
+            return False
+    
+    def cmd_delete_multiple_snapshots(self, vm_identifier: str, snapshot_names: List[str], skip_confirmation: bool = False) -> bool:
+        """Handle deletion of multiple snapshots for a single VM."""
+        # Resolve VM ID
+        vm_id = self.find_vm_by_name_or_id(vm_identifier)
+        if not vm_id:
+            print(f"❌ VM '{vm_identifier}' not found")
+            return False
+
+        vm_info = self.get_vm_info(vm_id)
+        if not vm_info:
+            print(f"❌ Could not get VM information for {vm_id}")
+            return False
+
+        print(f"🗑️  Deleting {len(snapshot_names)} snapshots from VM {vm_id}")
+        print(f"VM: {vm_info['name']}")
+        print(f"Snapshots: {', '.join(snapshot_names)}")
+
+        # Check if all snapshots exist
+        snapshots = self.get_snapshots(vm_id)
+        available_snapshots = [s for s in snapshots if s.get('name') != 'current']
+        available_names = [s.get('name') for s in available_snapshots]
+        
+        missing_snapshots = [name for name in snapshot_names if name not in available_names]
+        if missing_snapshots:
+            print(f"❌ The following snapshots were not found: {', '.join(missing_snapshots)}")
+            if available_snapshots:
+                print("Available snapshots:")
+                for snapshot in available_snapshots:
+                    name = snapshot.get('name', 'Unknown')
+                    desc = snapshot.get('description', 'No description')
+                    print(f"  - {name}: {desc}")
+            return False
+
+        # Show deletion warning
+        print(f"\n⚠️  MULTIPLE SNAPSHOT DELETION WARNING")
+        print("=" * 60)
+        print("This operation will:")
+        for snapshot_name in snapshot_names:
+            print(f"  • Permanently delete snapshot: {snapshot_name}")
+        print("  • Free up disk space used by these snapshots")
+        print("  • This action cannot be undone!")
+        print("=" * 60)
+
+        # Confirm operation
+        if skip_confirmation:
+            print(f"\n✅ Proceeding with snapshot deletion (--yes flag provided)")
+        else:
+            confirm = input(f"\nDelete {len(snapshot_names)} snapshots? (yes/N): ").strip().lower()
+            if confirm != 'yes':
+                print("Operation cancelled")
+                return False
+
+        # Delete snapshots one by one
+        success_count = 0
+        failed_snapshots = []
+        
+        for snapshot_name in snapshot_names:
+            print(f"\n🗑️  Deleting snapshot '{snapshot_name}'...")
+            success = self.delete_snapshot(vm_id, snapshot_name)
+            if success:
+                print(f"✅ Snapshot '{snapshot_name}' deleted successfully!")
+                success_count += 1
+            else:
+                print(f"❌ Failed to delete snapshot '{snapshot_name}'")
+                failed_snapshots.append(snapshot_name)
+
+        # Summary
+        print(f"\n📊 Deletion Summary:")
+        print(f"  ✅ Successfully deleted: {success_count}/{len(snapshot_names)} snapshots")
+        if failed_snapshots:
+            print(f"  ❌ Failed to delete: {', '.join(failed_snapshots)}")
+
+        return len(failed_snapshots) == 0
+    
+    def cmd_delete_all_snapshots(self, vm_identifier: str, skip_confirmation: bool = False) -> bool:
+        """Handle deletion of all snapshots for a single VM."""
+        # Resolve VM ID
+        vm_id = self.find_vm_by_name_or_id(vm_identifier)
+        if not vm_id:
+            print(f"❌ VM '{vm_identifier}' not found")
+            return False
+
+        vm_info = self.get_vm_info(vm_id)
+        if not vm_info:
+            print(f"❌ Could not get VM information for {vm_id}")
+            return False
+
+        # Get all snapshots (excluding 'current')
+        snapshots = self.get_snapshots(vm_id)
+        available_snapshots = [s for s in snapshots if s.get('name') != 'current']
+        
+        if not available_snapshots:
+            print(f"ℹ️  No snapshots found for VM {vm_id} ({vm_info['name']})")
+            return True
+
+        snapshot_names = [s.get('name') for s in available_snapshots]
+        
+        print(f"🗑️  Deleting ALL {len(snapshot_names)} snapshots from VM {vm_id}")
+        print(f"VM: {vm_info['name']}")
+        print(f"Snapshots: {', '.join(snapshot_names)}")
+
+        # Show deletion warning
+        print(f"\n⚠️  DELETE ALL SNAPSHOTS WARNING")
+        print("=" * 60)
+        print("This operation will:")
+        print(f"  • Permanently delete ALL {len(snapshot_names)} snapshots")
+        print("  • Free up significant disk space")
+        print("  • This action cannot be undone!")
+        print("=" * 60)
+
+        # Confirm operation
+        if skip_confirmation:
+            print(f"\n✅ Proceeding with all snapshots deletion (--yes flag provided)")
+        else:
+            confirm = input(f"\nDelete ALL {len(snapshot_names)} snapshots? (yes/N): ").strip().lower()
+            if confirm != 'yes':
+                print("Operation cancelled")
+                return False
+
+        # Delete snapshots one by one
+        success_count = 0
+        failed_snapshots = []
+        
+        for snapshot_name in snapshot_names:
+            print(f"\n🗑️  Deleting snapshot '{snapshot_name}'...")
+            success = self.delete_snapshot(vm_id, snapshot_name)
+            if success:
+                print(f"✅ Snapshot '{snapshot_name}' deleted successfully!")
+                success_count += 1
+            else:
+                print(f"❌ Failed to delete snapshot '{snapshot_name}'")
+                failed_snapshots.append(snapshot_name)
+
+        # Summary
+        print(f"\n📊 Deletion Summary:")
+        print(f"  ✅ Successfully deleted: {success_count}/{len(snapshot_names)} snapshots")
+        if failed_snapshots:
+            print(f"  ❌ Failed to delete: {', '.join(failed_snapshots)}")
+
+        return len(failed_snapshots) == 0
+
+    def cmd_delete_multiple_vms(self, vm_targets: List[str], snapshot_names: List[str], skip_confirmation: bool = False) -> bool:
+        """Handle deletion of specific snapshots for multiple VMs."""
+        print(f"🗑️  Deleting snapshot(s) '{', '.join(snapshot_names)}' from {len(vm_targets)} VM(s)")
+        print("=" * 60)
+        
+        # Resolve all VM IDs and validate snapshots exist
+        vm_info_list = []
+        for vm_target in vm_targets:
+            vm_id = self.find_vm_by_name_or_id(vm_target)
+            if not vm_id:
+                print(f"❌ VM '{vm_target}' not found")
+                return False
+            
+            vm_info = self.get_vm_info(vm_id)
+            if not vm_info:
+                print(f"❌ Could not get VM information for {vm_id}")
+                return False
+            
+            # Check if all snapshots exist for this VM
+            snapshots = self.get_snapshots(vm_id)
+            available_snapshots = [s for s in snapshots if s.get('name') != 'current']
+            available_snapshot_names = [s.get('name') for s in available_snapshots]
+            
+            missing_snapshots = []
+            for snapshot_name in snapshot_names:
+                if snapshot_name not in available_snapshot_names:
+                    missing_snapshots.append(snapshot_name)
+            
+            if missing_snapshots:
+                print(f"❌ The following snapshots were not found for VM {vm_id} ({vm_info['name']}): {', '.join(missing_snapshots)}")
+                if available_snapshots:
+                    print(f"Available snapshots for VM {vm_id}:")
+                    for snapshot in available_snapshots:
+                        name = snapshot.get('name', 'Unknown')
+                        desc = snapshot.get('description', 'No description')
+                        print(f"  - {name}: {desc}")
+                return False
+            
+            vm_info_list.append({
+                'vm_id': vm_id,
+                'vm_info': vm_info,
+                'snapshots_to_delete': snapshot_names
+            })
+        
+        # Display VMs and snapshots to be deleted
+        print(f"VMs and snapshots to delete:")
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            print(f"  • VM {vm_id}: {vm_info['name']} → {', '.join(snapshot_names)}")
+        
+        # Show deletion warning
+        total_deletions = len(vm_info_list) * len(snapshot_names)
+        print(f"\n⚠️  BULK SNAPSHOT DELETION WARNING")
+        print("=" * 60)
+        print("This operation will:")
+        print(f"  • Permanently delete {len(snapshot_names)} snapshot(s) from {len(vm_info_list)} VM(s)")
+        print(f"  • Total deletions: {total_deletions} snapshots")
+        print("  • Free up disk space used by these snapshots")
+        print("  • This action cannot be undone!")
+        print("=" * 60)
+        
+        # Confirm operation
+        if skip_confirmation:
+            print(f"\n✅ Proceeding with bulk snapshot deletion (--yes flag provided)")
+        else:
+            confirm = input(f"\nDelete {total_deletions} snapshots from {len(vm_info_list)} VM(s)? (yes/N): ").strip().lower()
+            if confirm != 'yes':
+                print("Operation cancelled")
+                return False
+        
+        # Perform deletions
+        total_success = 0
+        total_failed = 0
+        failed_deletions = []
+        
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            
+            print(f"\n🗑️  Processing VM {vm_id} ({vm_info['name']})...")
+            
+            for snapshot_name in snapshot_names:
+                print(f"  Deleting snapshot '{snapshot_name}'...")
+                success = self.delete_snapshot(vm_id, snapshot_name)
+                
+                if success:
+                    print(f"  ✅ Snapshot '{snapshot_name}' deleted successfully!")
+                    total_success += 1
+                else:
+                    print(f"  ❌ Failed to delete snapshot '{snapshot_name}'")
+                    total_failed += 1
+                    failed_deletions.append(f"VM {vm_id}: {snapshot_name}")
+        
+        # Summary
+        print(f"\n📊 Bulk Deletion Summary:")
+        print(f"  ✅ Successfully deleted: {total_success}/{total_deletions} snapshots")
+        if failed_deletions:
+            print(f"  ❌ Failed deletions:")
+            for failure in failed_deletions:
+                print(f"    - {failure}")
+        
+        return total_failed == 0
+    
+    def cmd_delete_all_snapshots_multiple_vms(self, vm_targets: List[str], skip_confirmation: bool = False) -> bool:
+        """Handle deletion of all snapshots for multiple VMs."""
+        print(f"🗑️  Deleting ALL snapshots from {len(vm_targets)} VM(s)")
+        print("=" * 60)
+        
+        # Resolve all VM IDs and get snapshot counts
+        vm_info_list = []
+        total_snapshots = 0
+        
+        for vm_target in vm_targets:
+            vm_id = self.find_vm_by_name_or_id(vm_target)
+            if not vm_id:
+                print(f"❌ VM '{vm_target}' not found")
+                return False
+            
+            vm_info = self.get_vm_info(vm_id)
+            if not vm_info:
+                print(f"❌ Could not get VM information for {vm_id}")
+                return False
+            
+            # Get all snapshots (excluding 'current')
+            snapshots = self.get_snapshots(vm_id)
+            available_snapshots = [s for s in snapshots if s.get('name') != 'current']
+            snapshot_names = [s.get('name') for s in available_snapshots]
+            
+            vm_info_list.append({
+                'vm_id': vm_id,
+                'vm_info': vm_info,
+                'snapshot_names': snapshot_names,
+                'snapshot_count': len(snapshot_names)
+            })
+            
+            total_snapshots += len(snapshot_names)
+        
+        if total_snapshots == 0:
+            print(f"ℹ️  No snapshots found across all specified VMs")
+            return True
+        
+        # Display VMs and snapshot counts
+        print(f"VMs and snapshot counts:")
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            count = vm_data['snapshot_count']
+            if count > 0:
+                print(f"  • VM {vm_id}: {vm_info['name']} → {count} snapshots")
+            else:
+                print(f"  • VM {vm_id}: {vm_info['name']} → No snapshots")
+        
+        # Show deletion warning
+        print(f"\n⚠️  DELETE ALL SNAPSHOTS WARNING")
+        print("=" * 60)
+        print("This operation will:")
+        print(f"  • Permanently delete ALL {total_snapshots} snapshots from {len(vm_info_list)} VM(s)")
+        print("  • Free up significant disk space")
+        print("  • This action cannot be undone!")
+        print("=" * 60)
+        
+        # Confirm operation
+        if skip_confirmation:
+            print(f"\n✅ Proceeding with bulk deletion of all snapshots (--yes flag provided)")
+        else:
+            confirm = input(f"\nDelete ALL {total_snapshots} snapshots from {len(vm_info_list)} VM(s)? (yes/N): ").strip().lower()
+            if confirm != 'yes':
+                print("Operation cancelled")
+                return False
+        
+        # Perform deletions
+        total_success = 0
+        total_failed = 0
+        failed_deletions = []
+        
+        for vm_data in vm_info_list:
+            vm_id = vm_data['vm_id']
+            vm_info = vm_data['vm_info']
+            snapshot_names = vm_data['snapshot_names']
+            
+            if not snapshot_names:
+                print(f"\n⏭️  Skipping VM {vm_id} ({vm_info['name']}) - no snapshots")
+                continue
+            
+            print(f"\n🗑️  Processing VM {vm_id} ({vm_info['name']}) - {len(snapshot_names)} snapshots...")
+            
+            for snapshot_name in snapshot_names:
+                print(f"  Deleting snapshot '{snapshot_name}'...")
+                success = self.delete_snapshot(vm_id, snapshot_name)
+                
+                if success:
+                    print(f"  ✅ Snapshot '{snapshot_name}' deleted successfully!")
+                    total_success += 1
+                else:
+                    print(f"  ❌ Failed to delete snapshot '{snapshot_name}'")
+                    total_failed += 1
+                    failed_deletions.append(f"VM {vm_id}: {snapshot_name}")
+        
+        # Summary
+        print(f"\n📊 Bulk Deletion Summary:")
+        print(f"  ✅ Successfully deleted: {total_success}/{total_snapshots} snapshots")
+        if failed_deletions:
+            print(f"  ❌ Failed deletions:")
+            for failure in failed_deletions:
+                print(f"    - {failure}")
+        
+        return total_failed == 0
+    
+    def cmd_delete_snapshot_new(self, args) -> bool:
+        """Delete snapshot(s) using new argument structure."""
+        try:
+            # Determine VM target(s)
+            vm_targets = []
+            if args.vmid:
+                vm_targets = [str(vmid) for vmid in args.vmid]
+            elif args.vmname:
+                vm_targets = args.vmname
+            
+            # Handle --all flag
+            if args.all:
+                if len(vm_targets) == 1:
+                    return self.cmd_delete_all_snapshots(vm_targets[0], skip_confirmation=args.yes)
+                else:
+                    return self.cmd_delete_all_snapshots_multiple_vms(vm_targets, skip_confirmation=args.yes)
+            
+            # Handle multiple snapshot names
+            if len(vm_targets) == 1:
+                # Single VM
+                if len(args.snapshot_name) == 1:
+                    # Single snapshot - use existing method
+                    return self.cmd_delete_snapshot([vm_targets[0], args.snapshot_name[0]], skip_confirmation=args.yes)
+                else:
+                    # Multiple snapshots - use bulk delete logic
+                    return self.cmd_delete_multiple_snapshots(vm_targets[0], args.snapshot_name, skip_confirmation=args.yes)
+            else:
+                # Multiple VMs
+                return self.cmd_delete_multiple_vms(vm_targets, args.snapshot_name, skip_confirmation=args.yes)
+            
+        except Exception as e:
+            print(f"❌ Error deleting snapshot(s): {e}")
             return False
 
 
@@ -2490,10 +3171,7 @@ def main():
     """Main function to initialize and run the snapshot manager."""
     manager = ProxmoxSnapshotManager()
     
-    # Check for help
-    if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help']:
-        manager.display_usage()
-        sys.exit(0)
+    # Check for help - handled by argparse in handle_command_line method
     
     # Check for command line mode
     if len(sys.argv) > 1:

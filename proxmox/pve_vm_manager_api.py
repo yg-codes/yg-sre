@@ -333,9 +333,9 @@ Features:
         else:
             # Fall back to removing common prefixes
             clean_name = full_name
-            if clean_name.startswith('xxx-dev-'):
+            if clean_name.startswith('xsf-dev-'):
                 clean_name = clean_name[8:]
-            elif clean_name.startswith('xxx-prod-'):
+            elif clean_name.startswith('xaj-prod-'):
                 clean_name = clean_name[9:]
         
         return clean_name if clean_name else full_name

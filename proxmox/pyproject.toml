@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proxmox-vm-management"
+version = "1.0.0"
+description = "Comprehensive Proxmox VM and snapshot management scripts"
+authors = [
+    {name = "Yan Gao", email = "yan.gao@finstadiumx.co.jp"},
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Clustering",
+]
+keywords = ["proxmox", "vm", "snapshot", "backup", "management"]
+
+dependencies = [
+    "requests>=2.25.0",
+    "urllib3>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "flake8",
+    "mypy",
+    "pytest",
+]
+
+[project.urls]
+Homepage = "https://gitlab.fsx.zone/it/sre/proxmox"
+Repository = "https://gitlab.fsx.zone/it/sre/proxmox.git"
+Issues = "https://gitlab.fsx.zone/it/sre/proxmox/-/issues"
+
+[project.scripts]
+pve-snapshot-manager = "pve_snapshot_manager:main"
+pve-vm-manager = "pve_vm_manager_api:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*.py"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | \.pytest_cache
+  | \.coverage
+  | \.env\.local
+  | \.env\..*\.local
+  | \.python-version
+  | build
+  | dist
+)/
+'''
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
